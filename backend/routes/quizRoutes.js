@@ -12,5 +12,6 @@ router.get('/:id', quizController.getQuizById);
 router.post('/ai-generate', authenticate, quizController.createQuizWithAI);
 router.post('/', authenticate, quizController.createQuiz);
 router.delete('/:id', authenticate, quizController.deleteQuiz);
+router.delete('/', authenticate, quizController.deleteAllQuizzes);
 
 module.exports = router;

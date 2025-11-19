@@ -34,17 +34,25 @@ module.exports = (sequelize, DataTypes) => {
       validate: {
         notEmpty: true,
         isValidOptions(value) {
-          if (!Array.isArray(value) || value.length !== 4) {
-            throw new Error('Options must be an array with exactly 4 items');
+          if (!Array.isArray(value) || value.length < 2 || value.length > 4) {
+            throw new Error('Options must be an array with 2 to 4 items');
           }
         }
       }
     },
     correctAnswer: {
-      type: DataTypes.STRING(1),
+      type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
-        isIn: [['A', 'B', 'C', 'D']]
+        min: 0,
+        max: 3,
+        isValidIndex(value) {
+          // This will be checked after options validation
+          // Just make sure it's a valid integer
+          if (!Number.isInteger(value)) {
+            throw new Error('correctAnswer must be an integer');
+          }
+        }
       }
     },
     timeLimit: {

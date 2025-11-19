@@ -18,10 +18,14 @@ const generateRoomCode = () => {
  */
 const createRoom = async (req, res) => {
   try {
+    console.log('📝 createRoom called');
+    console.log('User:', req.user?.username, 'ID:', req.userId);
+    console.log('Body:', req.body);
+    
     const { quizId, maxPlayers = 10 } = req.body;
     const hostId = req.userId;
 
-    // Validasi quiz jika ada
+    // Validasi quiz jika diberikan
     if (quizId) {
       const quiz = await Quiz.findByPk(quizId);
       if (!quiz) {
@@ -250,11 +254,14 @@ const getRoomById = async (req, res) => {
  */
 const getAllRooms = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, code } = req.query;
 
     const whereClause = {};
     if (status) {
       whereClause.status = status;
+    }
+    if (code) {
+      whereClause.code = code;
     }
 
     const rooms = await Room.findAll({
@@ -373,6 +380,94 @@ const deleteRoom = async (req, res) => {
 };
 
 /**
+ * Assign quiz to room (host only)
+ */
+const assignQuizToRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { quizId } = req.body;
+    const userId = req.userId;
+
+    console.log('📚 Assign quiz request:', { roomId, quizId, userId });
+
+    if (!quizId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quiz ID is required'
+      });
+    }
+
+    const room = await Room.findByPk(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: 'Room not found'
+      });
+    }
+
+    // Check if user is host
+    if (room.hostId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only host can assign quiz'
+      });
+    }
+
+    // Validate quiz exists
+    const quiz = await Quiz.findByPk(quizId);
+    if (!quiz) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quiz not found'
+      });
+    }
+
+    // Assign quiz
+    await room.update({ quizId });
+
+    // Get updated room with relations
+    const updatedRoom = await Room.findByPk(roomId, {
+      include: [
+        {
+          model: User,
+          as: 'host',
+          attributes: ['id', 'username', 'avatar']
+        },
+        {
+          model: Quiz,
+          as: 'quiz',
+          attributes: ['id', 'title', 'category', 'difficulty']
+        }
+      ]
+    });
+
+    console.log('✅ Quiz assigned successfully');
+
+    // Emit socket event to notify all players in room
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`room_${room.code}`).emit('quiz-assigned', {
+        room: updatedRoom
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Quiz assigned successfully',
+      data: updatedRoom
+    });
+  } catch (error) {
+    console.error('❌ Assign quiz error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error assigning quiz',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Get leaderboard for a room
  */
 const getRoomLeaderboard = async (req, res) => {
@@ -412,5 +507,6 @@ module.exports = {
   getAllRooms,
   leaveRoom,
   deleteRoom,
+  assignQuizToRoom,
   getRoomLeaderboard
 };

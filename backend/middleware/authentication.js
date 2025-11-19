@@ -8,8 +8,12 @@ const { User } = require('../models');
  */
 const authenticate = async (req, res, next) => {
   try {
+    console.log('🔐 Authentication middleware:', req.method, req.path);
+    
     // Ambil token dari header Authorization
     const authHeader = req.headers.authorization;
+    
+    console.log('Authorization header:', authHeader ? 'Present' : 'Missing');
     
     if (!authHeader) {
       return res.status(401).json({
@@ -31,25 +35,30 @@ const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = verifyToken(token);
     
+    console.log('✅ Token verified, userId:', decoded.id);
+    
     // Cari user berdasarkan id dari token
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['password'] } // Exclude password dari response
     });
     
     if (!user) {
+      console.log('❌ User not found for id:', decoded.id);
       return res.status(401).json({
         success: false,
         message: 'User not found. Token may be invalid.'
       });
     }
 
+    console.log('✅ User authenticated:', user.username);
+    
     // Tambahkan user data ke request object
     req.user = user;
     req.userId = user.id;
     
     next();
   } catch (error) {
-    console.error('Authentication error:', error.message);
+    console.error('❌ Authentication error:', error.message);
     
     if (error.message === 'Token expired') {
       return res.status(401).json({

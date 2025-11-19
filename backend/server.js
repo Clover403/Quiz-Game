@@ -108,8 +108,8 @@ const startServer = async () => {
     // Sync database (use { force: true } to drop and recreate tables)
     // WARNING: force: true will delete all data!
     if (process.env.NODE_ENV === 'development') {
-      // await db.sequelize.sync({ alter: true }); // Uncomment to auto-update schema
-      console.log('📊 Database synced (development mode)');
+      // await db.sequelize.sync({ force: true }); // Drop and recreate tables (DANGER!)
+      console.log('📊 Database ready (development mode)');
     }
     
     // Start server

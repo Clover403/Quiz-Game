@@ -58,9 +58,11 @@ const handleSocketConnection = (io, socket) => {
   });
 
   // Join room
-  socket.on('joinRoom', async (data, callback) => {
+  socket.on('join-room', async (data) => {
     try {
       const { roomCode, userId } = data;
+      
+      console.log('👤 User joining room:', { roomCode, userId });
 
       const room = await Room.findOne({
         where: { code: roomCode },
@@ -70,11 +72,13 @@ const handleSocketConnection = (io, socket) => {
       });
 
       if (!room) {
-        return callback({ success: false, message: 'Room not found' });
+        socket.emit('join-room-error', { message: 'Room not found' });
+        return;
       }
 
       if (room.status !== 'waiting') {
-        return callback({ success: false, message: 'Game already started' });
+        socket.emit('join-room-error', { message: 'Game already started' });
+        return;
       }
 
       const user = await User.findByPk(userId, {
@@ -82,14 +86,30 @@ const handleSocketConnection = (io, socket) => {
       });
 
       if (!user) {
-        return callback({ success: false, message: 'User not found' });
+        socket.emit('join-room-error', { message: 'User not found' });
+        return;
       }
 
-      // Add player to room
-      const players = room.players || [];
-      if (!players.includes(userId) && room.hostId !== userId) {
+      // Add player to room if not already in
+      let players = room.players || [];
+      if (!players.includes(userId)) {
         players.push(userId);
         await room.update({ players });
+        
+        // Create leaderboard entry
+        const existingEntry = await Leaderboard.findOne({
+          where: { roomId: room.id, userId: userId }
+        });
+        
+        if (!existingEntry) {
+          await Leaderboard.create({
+            roomId: room.id,
+            userId: userId,
+            score: 0,
+            correctAnswers: 0,
+            timeBonus: 0
+          });
+        }
       }
 
       // Join socket room
@@ -116,23 +136,38 @@ const handleSocketConnection = (io, socket) => {
         socketId: socket.id
       });
 
-      // Notify all players in room
-      io.to(`room_${roomCode}`).emit('playerJoined', {
+      console.log('✅ User joined room:', { roomCode, userId, totalPlayers: players.length });
+
+      // Notify all players in room (including the one who just joined)
+      io.to(`room_${roomCode}`).emit('player-joined', {
         player: user,
-        players: Array.from(roomState.players.values())
+        players: players,
+        totalPlayers: players.length
       });
 
-      callback({ success: true, room, player: user });
     } catch (error) {
-      console.error('Error joining room:', error);
-      callback({ success: false, message: error.message });
+      console.error('❌ Error joining room:', error);
+      socket.emit('join-room-error', { message: error.message });
     }
   });
 
   // Leave room
-  socket.on('leaveRoom', async (data, callback) => {
+  socket.on('leave-room', async (data) => {
     try {
       const { roomCode, userId } = data;
+      
+      console.log('👋 User leaving room:', { roomCode, userId });
+
+      const room = await Room.findOne({ where: { code: roomCode } });
+      
+      if (room) {
+        // Remove player from room
+        let players = room.players || [];
+        players = players.filter(id => id !== userId);
+        await room.update({ players });
+        
+        console.log('✅ User left room:', { roomCode, userId, remainingPlayers: players.length });
+      }
 
       if (socket.roomCode) {
         socket.leave(`room_${socket.roomCode}`);
@@ -142,23 +177,25 @@ const handleSocketConnection = (io, socket) => {
       if (roomState) {
         roomState.players.delete(userId);
         
-        io.to(`room_${roomCode}`).emit('playerLeft', {
+        // Notify all remaining players
+        io.to(`room_${roomCode}`).emit('player-left', {
           userId,
-          players: Array.from(roomState.players.values())
+          players: room ? room.players : [],
+          totalPlayers: room ? room.players.length : 0
         });
       }
 
-      callback({ success: true });
     } catch (error) {
-      console.error('Error leaving room:', error);
-      callback({ success: false, message: error.message });
+      console.error('❌ Error leaving room:', error);
     }
   });
 
   // Start game
-  socket.on('startGame', async (data, callback) => {
+  socket.on('start-game', async (data) => {
     try {
       const { roomCode } = data;
+      
+      console.log('🚀 Starting game:', roomCode);
 
       const room = await Room.findOne({
         where: { code: roomCode },
@@ -172,11 +209,13 @@ const handleSocketConnection = (io, socket) => {
       });
 
       if (!room) {
-        return callback({ success: false, message: 'Room not found' });
+        socket.emit('start-game-error', { message: 'Room not found' });
+        return;
       }
 
       if (!room.quiz || !room.quiz.questions || room.quiz.questions.length === 0) {
-        return callback({ success: false, message: 'No quiz assigned to this room' });
+        socket.emit('start-game-error', { message: 'No quiz assigned to this room' });
+        return;
       }
 
       // Update room status
@@ -191,6 +230,8 @@ const handleSocketConnection = (io, socket) => {
         roomState.currentQuestion = 0;
       }
 
+      console.log('✅ Game started:', roomCode);
+
       // Send first question
       const firstQuestion = room.quiz.questions[0];
       const questionData = {
@@ -203,7 +244,7 @@ const handleSocketConnection = (io, socket) => {
         totalQuestions: room.quiz.questions.length
       };
 
-      io.to(`room_${roomCode}`).emit('gameStarted', {
+      io.to(`room_${roomCode}`).emit('game-started', {
         quiz: {
           id: room.quiz.id,
           title: room.quiz.title,
@@ -212,10 +253,9 @@ const handleSocketConnection = (io, socket) => {
         question: questionData
       });
 
-      callback({ success: true });
     } catch (error) {
-      console.error('Error starting game:', error);
-      callback({ success: false, message: error.message });
+      console.error('❌ Error starting game:', error);
+      socket.emit('start-game-error', { message: error.message });
     }
   });
 

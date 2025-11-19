@@ -10,5 +10,6 @@ router.post('/login', authController.login);
 // Protected routes (memerlukan authentication)
 router.get('/profile', authenticate, authController.getProfile);
 router.put('/profile', authenticate, authController.updateProfile);
+router.get('/users/:id', authenticate, authController.getUserById);
 
 module.exports = router;

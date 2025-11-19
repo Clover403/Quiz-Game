@@ -2,6 +2,27 @@ const { Quiz, Question } = require('../models');
 const { generateQuestions, validateQuestions } = require('../helpers/aiHelper');
 
 /**
+ * Delete all quizzes (for testing/reset)
+ */
+const deleteAllQuizzes = async (req, res) => {
+  try {
+    await Question.destroy({ where: {}, truncate: true });
+    await Quiz.destroy({ where: {}, truncate: true });
+    
+    res.json({
+      success: true,
+      message: 'All quizzes deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting quizzes:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
  * Create quiz dengan AI-generated questions
  */
 const createQuizWithAI = async (req, res) => {
@@ -9,15 +30,18 @@ const createQuizWithAI = async (req, res) => {
     const { title, description, category, difficulty, numberOfQuestions = 5 } = req.body;
 
     // Validasi input
-    if (!title || !category || !difficulty) {
+    if (!category || !difficulty) {
       return res.status(400).json({
         success: false,
-        message: 'Title, category, and difficulty are required'
+        message: 'Category and difficulty are required'
       });
     }
 
+    // Auto-generate title jika tidak ada
+    const quizTitle = title || `${category} Quiz - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`;
+
     // Generate questions menggunakan AI
-    console.log(`Generating ${numberOfQuestions} questions for ${category} (${difficulty})...`);
+    console.log(`🤖 Generating ${numberOfQuestions} questions for ${category} (${difficulty})...`);
     const aiQuestions = await generateQuestions({
       category,
       difficulty,
@@ -31,7 +55,7 @@ const createQuizWithAI = async (req, res) => {
 
     // Buat quiz
     const quiz = await Quiz.create({
-      title,
+      title: quizTitle,
       description: description || `AI Generated ${category} Quiz - ${difficulty} level`,
       category,
       difficulty,
@@ -75,7 +99,8 @@ const createQuizWithAI = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Create quiz with AI error:', error);
+    console.error('❌ Create quiz with AI error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error creating quiz with AI',
@@ -325,5 +350,6 @@ module.exports = {
   getQuizById,
   getQuizWithAnswers,
   deleteQuiz,
+  deleteAllQuizzes,
   getCategories
 };

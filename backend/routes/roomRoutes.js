@@ -13,8 +13,11 @@ router.post('/join', roomController.joinRoom);
 router.get('/', roomController.getAllRooms);
 router.get('/:id', roomController.getRoomById);
 
-// Room actions (require membership)
-router.delete('/:roomId/leave', isRoomMember, roomController.leaveRoom);
+// Room actions - Assign quiz (host only)
+router.put('/:roomId/assign-quiz', isRoomHost, roomController.assignQuizToRoom);
+
+// Room actions - Leave room (no middleware needed, anyone can leave)
+router.delete('/:roomId/leave', roomController.leaveRoom);
 
 // Room actions (require host permission)
 router.delete('/:roomId', isRoomHost, roomController.deleteRoom);

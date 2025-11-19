@@ -77,6 +77,14 @@ const isRoomMember = async (req, res, next) => {
     // Note: players disimpan sebagai JSON array of user IDs
     const players = room.players || [];
     
+    console.log('🔐 isRoomMember check:', {
+      userId,
+      hostId: room.hostId,
+      players,
+      isHost: room.hostId === userId,
+      isInPlayers: players.includes(userId)
+    });
+    
     if (room.hostId !== userId && !players.includes(userId)) {
       return res.status(403).json({
         success: false,
