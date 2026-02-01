@@ -2,25 +2,97 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #16002A;
+  background-image: linear-gradient(135deg, #16002A 0%, #380B5C 100%);
+  color: #FFFFFF;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden; /* Prevent scrollbar from background shapes */
+}
+
+/* Subtle background blobs/graphics */
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px;
+  right: -200px;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(255, 0, 153, 0.08) 0%, rgba(22, 0, 42, 0) 70%);
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px;
+  left: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(56, 11, 92, 0.3) 0%, rgba(22, 0, 42, 0) 70%);
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Abstract line graphic simulation (optional subtle overlay) */
+.bg-graphic-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 100px 100px; /* Large grid abstract look */
+  z-index: -2;
+  pointer-events: none;
 }
 
 
 .card {
-  background: white;
+  background: #250638; /* Surface */
+  border: 1px solid rgba(224, 176, 255, 0.1); /* Subtle Mauve border */
   border-radius: 1rem;
   padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
 }
 
 .input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 2px solid var(--gray-300);
+  background: rgba(22, 0, 42, 0.6);
+  border: 1px solid rgba(224, 176, 255, 0.2);
   border-radius: 0.75rem;
   font-size: 1rem;
+  color: white;
+  transition: all 0.3s ease;
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: #FF0099; /* Neon Pink */
+  box-shadow: 0 0 0 2px rgba(255, 0, 153, 0.2);
 }
+
+.btn-primary {
+  background: linear-gradient(90deg, #FF0099 0%, #FF5CB4 100%);
+  color: white;
+  font-weight: 600;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px; /* Pill shape */
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(255, 0, 153, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 0, 153, 0.5);
+}
+
