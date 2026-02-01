@@ -210,16 +210,22 @@ const Game = () => {
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          // Auto-submit when time runs out
-          if (!hasAnswered && socket) {
-            socket.emit('submitAnswer', {
-              roomCode: code,
-              userId: user?.id,
-              questionId: currentQuestion.id,
-              answer: selectedAnswer,
-              timeRemaining: 0
-            });
-            setHasAnswered(true);
+          // Auto-submit only if user hasn't answered
+          // Important: We mark the user as 'answered' locally to stop further interactions
+          // but we send a 'null' answer or similar to backend to indicate timeout/no-answer
+          if (!hasAnswered) {
+             setHasAnswered(true);
+             if (socket && user) {
+                // If user doesn't answer, we can emit with a special flag or just rely on backend timeout.
+                // However, to ensure frontend UI updates and locking:
+                socket.emit('submitAnswer', {
+                  roomCode: code,
+                  userId: user.id,
+                  questionId: currentQuestion.id,
+                  answer: null, // Answer is null indicating no selection
+                  timeRemaining: 0
+                }, () => {}); // Empty callback to prevent backend errors if it expects one
+             }
           }
           return 0;
         }
@@ -228,7 +234,7 @@ const Game = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentQuestion, hasAnswered, selectedAnswer, code, user, socket]);
+  }, [currentQuestion, hasAnswered, code, user, socket]);
 
   const handleNextQuestion = () => {
     setAnswerResult(null);
@@ -282,16 +288,16 @@ const Game = () => {
   }
 
   const getTimerColor = () => {
-    if (timeRemaining <= 5) return '#ef4444';
-    if (timeRemaining <= 10) return '#f59e0b';
-    return '#10b981';
+    if (timeRemaining <= 5) return '#ef4444'; // Red
+    if (timeRemaining <= 10) return '#f59e0b'; // Amber
+    return '#65a30d'; // Lime-600 hex code
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-700 to-indigo-900 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen py-8 px-4 relative">
+      <div className="max-w-4xl mx-auto relative z-10">
         {/* Header */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 mt-25 border border-white/20">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-white mb-1">{quiz?.title || 'Quiz Game'}</h2>
@@ -308,7 +314,7 @@ const Game = () => {
           {/* Progress Bar */}
           <div className="mt-4 h-2 bg-white/20 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500" 
+              className="h-full bg-gradient-to-r from-lime-400 to-lime-500 transition-all duration-500" 
               style={{ width: `${(questionNumber / totalQuestions) * 100}%` }}
             ></div>
           </div>
@@ -327,7 +333,7 @@ const Game = () => {
         {answerResult && (
           <div className={`mb-6 p-4 rounded-xl backdrop-blur-lg border-2 ${
             answerResult.isCorrect 
-              ? 'bg-green-500/20 border-green-400' 
+              ? 'bg-lime-500/20 border-lime-400' 
               : 'bg-red-500/20 border-red-400'
           }`}>
             <h4 className="text-xl font-bold text-white mb-2">
@@ -355,7 +361,7 @@ const Game = () => {
                 className={`p-6 rounded-xl text-left transition-all duration-300 border-2 ${
                   isAnswered
                     ? isCorrect
-                      ? 'bg-green-500/30 border-green-400 backdrop-blur-lg'
+                      ? 'bg-lime-500/30 border-lime-400 backdrop-blur-lg'
                       : 'bg-red-500/30 border-red-400 backdrop-blur-lg'
                     : isSelected
                       ? 'bg-white/30 border-white backdrop-blur-lg transform scale-105'
@@ -368,7 +374,7 @@ const Game = () => {
                   <span className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${
                     isAnswered
                       ? isCorrect
-                        ? 'bg-green-400 text-green-900'
+                        ? 'bg-lime-400 text-lime-900'
                         : 'bg-red-400 text-red-900'
                       : isSelected
                         ? 'bg-white text-purple-600'
@@ -384,11 +390,11 @@ const Game = () => {
         </div>
 
         {/* Submit Button */}
-        {!hasAnswered && (
+        {!hasAnswered && timeRemaining > 0 && (
           <button
             className={`w-full px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
               selectedAnswer !== null
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 shadow-lg shadow-green-500/50'
+                ? 'bg-gradient-to-r from-lime-500 to-lime-500 text-white hover:from-lime-600 hover:to-lime-600 transform hover:scale-105 shadow-lg shadow-lime-500/50'
                 : 'bg-white/10 text-white/40 cursor-not-allowed'
             }`}
             onClick={() => handleSubmitAnswer(selectedAnswer)}
@@ -398,22 +404,24 @@ const Game = () => {
           </button>
         )}
 
-        {/* Next Question (for host) */}
-        {hasAnswered && room?.hostId === user.id && (
+        {/* Next Question (for host) - Shows if answered OR time is up */}
+        {(hasAnswered || timeRemaining === 0) && room?.hostId === user.id && (
           <button
             className="w-full px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-lg rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/50 flex items-center justify-center gap-2"
             onClick={handleNextQuestion}
           >
-            Next Question
+            {timeRemaining === 0 ? "Time's Up! Next Question" : "Next Question"}
             <ArrowRight className="w-5 h-5" />
           </button>
         )}
 
-        {/* Waiting for host */}
-        {hasAnswered && room?.hostId !== user.id && (
+        {/* Waiting for host - Shows if answered OR time is up, valid for non-hosts */}
+        {(hasAnswered || timeRemaining === 0) && room?.hostId !== user.id && (
           <div className="text-center p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20">
             <Loader2 className="w-6 h-6 text-white animate-spin mx-auto mb-2" />
-            <p className="text-white/90">⏳ Waiting for host to continue...</p>
+            <p className="text-white/90">
+                {timeRemaining === 0 ? "⏳ Time's Up! Waiting for host..." : "⏳ Waiting for host to continue..."}
+            </p>
           </div>
         )}
       </div>
