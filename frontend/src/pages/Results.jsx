@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAudio } from '../context/AudioContext';
-import { Trophy, Medal, Crown, Home, Award, Target } from 'lucide-react';
+import { Trophy, Medal, Crown, Home, Award, Target, Loader2 } from 'lucide-react';
 
 const Results = () => {
   const { code } = useParams();
@@ -32,15 +32,15 @@ const Results = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [results, musicPlayed]); // Removed playVictoryMusic dari dependencies untuk avoid loop
+  }, [results, musicPlayed]);
 
   // Cleanup: stop music when ACTUALLY leaving Results page (component unmount)
   useEffect(() => {
     return () => {
-      console.log('� Component unmounting, stopping music...');
+      console.log('🏁 Component unmounting, stopping music...');
       stopAllMusic();
     };
-  }, []); // Empty dependencies = only run on mount/unmount
+  }, []);
 
   const fetchResults = async () => {
     try {
@@ -105,36 +105,34 @@ const Results = () => {
     navigate('/');
   };
 
-  // Manual play music button (untuk bypass browser autoplay policy)
-  const handlePlayMusic = () => {
-    console.log('🎵 Manual play button clicked!');
-    playVictoryMusic();
-  };
-
   const getMedalIcon = (position) => {
     switch(position) {
-      case 0: return <Medal className="w-6 h-6 text-yellow-400" />; // Gold
-      case 1: return <Medal className="w-6 h-6 text-gray-300" />; // Silver
-      case 2: return <Medal className="w-6 h-6 text-amber-600" />; // Bronze
+      case 0: return <Medal className="w-8 h-8 text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]" />; // Gold
+      case 1: return <Medal className="w-8 h-8 text-gray-300 drop-shadow-[0_0_10px_rgba(209,213,219,0.5)]" />; // Silver
+      case 2: return <Medal className="w-8 h-8 text-amber-600 drop-shadow-[0_0_10px_rgba(217,119,6,0.5)]" />; // Bronze
       default: return null;
     }
   };
 
   const getRankStyles = (position) => {
     switch(position) {
-      case 0: return 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-400';
-      case 1: return 'bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-300';
-      case 2: return 'bg-gradient-to-r from-amber-50 to-amber-100 border-2 border-amber-600';
-      default: return 'bg-white border border-gray-200';
+      case 0: return 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]';
+      case 1: return 'bg-gradient-to-r from-gray-400/20 to-gray-500/20 border-gray-400/50';
+      case 2: return 'bg-gradient-to-r from-amber-600/20 to-amber-700/20 border-amber-600/50';
+      default: return 'bg-white/5 border-white/10 hover:bg-white/10';
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-5">
-        <div className="text-center text-white">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4"></div>
-          <p className="text-lg">Loading results...</p>
+      <div className="min-h-screen flex items-center justify-center p-5 relative overflow-hidden">
+        {/* Background blobs */}
+        <div className="absolute top-1/4 -left-20 w-[40rem] h-[40rem] bg-neon-pink/20 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-20 w-[40rem] h-[40rem] bg-indigo-600/20 rounded-full blur-[100px] pointer-events-none" />
+        
+        <div className="text-center relative z-10">
+          <Loader2 className="w-12 h-12 text-neon-pink animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg font-medium tracking-wide">Calculating results...</p>
         </div>
       </div>
     );
@@ -142,16 +140,18 @@ const Results = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-5">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Award className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen flex items-center justify-center p-5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-cover bg-center opacity-30 pointer-events-none" style={{ backgroundImage: "url('/lovable-uploads/grafis-bg.png')" }}></div>
+
+        <div className="bg-surface/30 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl p-8 max-w-md w-full text-center relative z-10">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+            <Award className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Error</h2>
+          <p className="text-gray-300 mb-8">{error}</p>
           <button
             onClick={handleBackToHome}
-            className="flex items-center justify-center gap-2 w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+            className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-neon-pink to-pink-600 hover:shadow-[0_0_20px_rgba(255,0,153,0.5)] text-white px-6 py-3 rounded-xl font-bold tracking-wide transition-all duration-300"
           >
             <Home className="w-5 h-5" />
             Back to Home
@@ -166,60 +166,48 @@ const Results = () => {
   const isWinner = results.winner && results.winner.id === user?.id;
 
   return (
-  <div className="relative min-h-screen flex items-center justify-center p-5 overflow-hidden bg-[linear-gradient(135deg,#667eea_0%,#764ba2_100%)]">
+  <div className="relative min-h-screen mt-5 flex items-center justify-center p-5 overflow-hidden font-sans">
     
+    {/* Background Graphic */}
+    <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/40 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[10%] right-[5%] w-[30%] h-[30%] bg-neon-pink/20 rounded-full blur-[100px]" />
+    </div>
+
     {/* Animated Victory Icons Background */}
-    <div className="absolute inset-0 pointer-events-none opacity-[0.12]">
+    <div className="absolute inset-0 pointer-events-none opacity-[0.05]">
       <div className="absolute top-10 left-10 animate-float-slow">
-        <Trophy className="w-24 h-24 text-white/40" />
+        <Trophy className="w-24 h-24 text-white" />
       </div>
       <div className="absolute top-1/3 right-14 animate-float">
-        <Crown className="w-20 h-20 text-white/40" />
+        <Crown className="w-20 h-20 text-white" />
       </div>
       <div className="absolute bottom-10 left-1/4 animate-float-delayed">
-        <Medal className="w-28 h-28 text-white/40" />
+        <Medal className="w-28 h-28 text-white" />
       </div>
       <div className="absolute bottom-20 right-20 animate-float-fast">
-        <Award className="w-20 h-20 text-white/40" />
+        <Award className="w-20 h-20 text-white" />
       </div>
     </div>
 
     {/* Main Card */}
-    <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border border-white/30 shadow-[0_20px_60px_rgba(0,0,0,0.25)] max-w-2xl w-full overflow-hidden animate-[slideUp_0.5s_ease-out]">
+    <div className="relative bg-surface/30 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl mt-10 max-w-2xl w-full overflow-hidden animate-[slideUp_0.5s_ease-out] z-10">
       
       {/* Header */}
-      <div className="relative bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white p-10 text-center shadow-[inset_0_0_30px_rgba(255,255,255,0.15)] overflow-hidden">
-        {/* Colorful Ribbon Decorations */}
-        {/* Top left ribbons */}
-        <div className="absolute top-2 left-4 w-16 h-2 bg-gradient-to-r from-pink-400 to-rose-500 rounded-full rotate-45 animate-pulse" style={{animationDelay: '0s'}}></div>
-        <div className="absolute top-6 left-8 w-12 h-2 bg-gradient-to-r from-yellow-300 to-amber-400 rounded-full -rotate-45 animate-pulse" style={{animationDelay: '0.3s'}}></div>
-        <div className="absolute top-10 left-2 w-10 h-2 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full rotate-12 animate-pulse" style={{animationDelay: '0.6s'}}></div>
-        
-        {/* Top right ribbons */}
-        <div className="absolute top-3 right-6 w-14 h-2 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full -rotate-45 animate-pulse" style={{animationDelay: '0.2s'}}></div>
-        <div className="absolute top-8 right-10 w-12 h-2 bg-gradient-to-r from-orange-400 to-red-500 rounded-full rotate-45 animate-pulse" style={{animationDelay: '0.5s'}}></div>
-        <div className="absolute top-12 right-4 w-10 h-2 bg-gradient-to-r from-purple-400 to-fuchsia-500 rounded-full -rotate-12 animate-pulse" style={{animationDelay: '0.8s'}}></div>
-        
-        {/* Bottom left ribbons */}
-        <div className="absolute bottom-4 left-6 w-14 h-2 bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full -rotate-12 animate-pulse" style={{animationDelay: '0.4s'}}></div>
-        <div className="absolute bottom-8 left-12 w-10 h-2 bg-gradient-to-r from-rose-400 to-pink-500 rounded-full rotate-45 animate-pulse" style={{animationDelay: '0.7s'}}></div>
-        
-        {/* Bottom right ribbons */}
-        <div className="absolute bottom-5 right-8 w-12 h-2 bg-gradient-to-r from-lime-400 to-green-500 rounded-full rotate-12 animate-pulse" style={{animationDelay: '0.1s'}}></div>
-        <div className="absolute bottom-10 right-14 w-14 h-2 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full -rotate-45 animate-pulse" style={{animationDelay: '0.9s'}}></div>
+      <div className="relative bg-black/20 text-white p-8 text-center border-b border-white/5">
         
         {/* Confetti dots */}
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-yellow-300 rounded-full animate-ping" style={{animationDelay: '0s'}}></div>
-        <div className="absolute top-1/3 right-1/4 w-2 h-2 bg-pink-400 rounded-full animate-ping" style={{animationDelay: '0.3s'}}></div>
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-yellow-400 rounded-full animate-ping" style={{animationDelay: '0s'}}></div>
+        <div className="absolute top-1/3 right-1/4 w-2 h-2 bg-neon-pink rounded-full animate-ping" style={{animationDelay: '0.3s'}}></div>
         <div className="absolute bottom-1/4 left-1/3 w-2 h-2 bg-cyan-400 rounded-full animate-ping" style={{animationDelay: '0.6s'}}></div>
         <div className="absolute bottom-1/3 right-1/3 w-2 h-2 bg-green-400 rounded-full animate-ping" style={{animationDelay: '0.9s'}}></div>
         
-        <div className="flex justify-center mb-4">
-        </div>
-        <h1 className="text-4xl font-bold mb-3 relative z-10">🎉 Game Finished! 🎊</h1>
-        <h2 className="text-2xl font-semibold mb-1 relative z-10">{results.quizTitle}</h2>
+        <h1 className="text-4xl font-extrabold mb-3 relative z-10 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-800 via-yellow-100 to-yellow-600 animate-pulse">
+            🎉 Game Finished! 🎊
+        </h1>
+        <h2 className="text-2xl font-bold mb-1 relative z-10 text-neon-pink">{results.quizTitle}</h2>
         {results.category && (
-          <p className="text-purple-200 text-lg relative z-10">
+          <p className="text-gray-400 text-lg relative z-10">
             {results.category} • {results.difficulty}
           </p>
         )}
@@ -227,57 +215,33 @@ const Results = () => {
 
       {/* Winner Spotlight */}
       {results.winner && (
-        <div className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-white p-10 text-center relative overflow-hidden shadow-inner">
-          {/* Victory Icons Background - More decorative */}
-          <div className="absolute top-3 left-4 animate-pulse opacity-40">
-            <Award className="w-10 h-10" />
-          </div>
-          <div className="absolute top-3 right-4 animate-pulse opacity-40" style={{ animationDelay: '0.7s' }}>
-            <Award className="w-10 h-10" />
-          </div>
-          <div className="absolute bottom-3 left-8 animate-bounce opacity-30" style={{ animationDelay: '0.3s' }}>
-            <Medal className="w-12 h-12" />
-          </div>
-          <div className="absolute bottom-3 right-8 animate-bounce opacity-30" style={{ animationDelay: '0.5s' }}>
-            <Medal className="w-12 h-12" />
-          </div>
-          <div className="absolute top-1/2 left-6 animate-pulse opacity-25" style={{ animationDelay: '1s' }}>
-            <Crown className="w-9 h-9" />
-          </div>
-          <div className="absolute top-1/2 right-6 animate-pulse opacity-25" style={{ animationDelay: '0.4s' }}>
-            <Crown className="w-9 h-9" />
-          </div>
+        <div className="bg-gradient-to-b from-black/20 to-transparent p-8 text-center relative overflow-hidden">
           
-          {/* Sparkle effects */}
-          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-ping opacity-60"></div>
-          <div className="absolute top-1/3 right-1/3 w-2 h-2 bg-white rounded-full animate-ping opacity-60" style={{ animationDelay: '0.5s' }}></div>
-          <div className="absolute bottom-1/4 left-1/3 w-2 h-2 bg-white rounded-full animate-ping opacity-60" style={{ animationDelay: '1s' }}></div>
-
           <div className="relative z-10">
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-6">
               <div className="relative">
                 {/* Glow effect behind trophy */}
-                <div className="absolute inset-0 bg-white/40 rounded-full blur-xl animate-pulse"></div>
-                <div className="relative bg-white/30 p-5 rounded-full animate-bounce">
-                  <Trophy className="w-16 h-16" />
+                <div className="absolute inset-0 bg-yellow-500/30 rounded-full blur-2xl animate-pulse"></div>
+                <div className="relative bg-gradient-to-br from-yellow-400 to-amber-600 p-6 rounded-full shadow-[0_0_30px_rgba(251,191,36,0.4)] animate-bounce">
+                  <Trophy className="w-16 h-16 text-white" />
                 </div>
               </div>
             </div>
 
-            <h2 className="text-xl font-bold uppercase tracking-wider mb-2 flex items-center justify-center gap-2">
-              <Crown className="w-6 h-6 animate-bounce" />
+            <h2 className="text-xl font-bold uppercase tracking-widest mb-2 flex items-center justify-center gap-3 text-yellow-400">
+              <Crown className="w-5 h-5" />
               Winner
-              <Crown className="w-6 h-6 animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <Crown className="w-5 h-5" />
             </h2>
-            <h3 className="text-3xl font-bold mb-2">{results.winner.username}</h3>
-            <p className="text-2xl font-semibold">{results.winner.score} points</p>
+            <h3 className="text-4xl font-bold mb-2 text-white">{results.winner.username}</h3>
+            <p className="text-2xl font-semibold text-neon-pink">{results.winner.score} points</p>
 
             {isWinner && (
-              <div className="mt-4 inline-block bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3">
-                <p className="text-lg font-semibold animate-pulse flex items-center justify-center gap-2">
-                  <Trophy className="w-5 h-5" />
+              <div className="mt-6 inline-block bg-neon-pink/20 backdrop-blur-sm rounded-xl px-8 py-3 border border-neon-pink/50 shadow-[0_0_20px_rgba(255,0,153,0.3)]">
+                <p className="text-lg font-bold text-white flex items-center justify-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
                   Congratulations! You won!
-                  <Trophy className="w-5 h-5" />
+                  <Trophy className="w-5 h-5 text-yellow-400" />
                 </p>
               </div>
             )}
@@ -286,47 +250,47 @@ const Results = () => {
       )}
 
       {/* Leaderboard */}
-      <div className="p-10">
+      <div className="p-8">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <Trophy className="w-7 h-7 text-purple-600" />
-          <h3 className="text-3xl font-bold text-gray-900">Final Leaderboard</h3>
-          <Trophy className="w-7 h-7 text-purple-600" />
+          <Trophy className="w-6 h-6 text-neon-pink" />
+          <h3 className="text-2xl font-bold text-white">Final Leaderboard</h3>
+          <Trophy className="w-6 h-6 text-neon-pink" />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
           {results.players.map((player, index) => (
             <div
               key={player.id}
               className={`
-                flex items-center p-5 rounded-xl transition-all duration-300 hover:scale-[1.02]
+                flex items-center p-4 rounded-xl border transition-all duration-300
                 ${getRankStyles(index)}
-                ${player.id === user?.id ? 'ring-4 ring-purple-400 shadow-lg' : ''}
+                ${player.id === user?.id ? 'ring-2 ring-neon-pink shadow-[0_0_15px_rgba(255,0,153,0.3)]' : ''}
               `}
             >
               {/* Rank */}
-              <div className="flex items-center gap-3 min-w-[80px]">
-                <span className="text-xl font-bold text-gray-700">#{index + 1}</span>
+              <div className="flex items-center gap-4 min-w-[60px]">
+                <span className={`text-xl font-bold ${index < 3 ? 'text-white' : 'text-gray-400'}`}>#{index + 1}</span>
                 {getMedalIcon(index)}
               </div>
 
               {/* Player & Host */}
               <div className="flex-1 mx-4">
-                <span className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-lg font-semibold text-white flex items-center gap-2">
                   {player.username}
                   {player.id === user?.id && (
-                    <span className="text-sm text-purple-600 font-medium">(You)</span>
+                    <span className="text-sm text-neon-pink font-bold tracking-wide uppercase bg-neon-pink/10 px-2 py-0.5 rounded border border-neon-pink/30">You</span>
                   )}
                   {player.id === results.room.hostId && (
-                    <Crown className="w-5 h-5 text-yellow-500" />
+                    <Crown className="w-4 h-4 text-yellow-500" />
                   )}
                 </span>
               </div>
 
               {/* Score */}
               <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-purple-600" />
-                <span className="text-xl font-bold text-purple-700">{player.score}</span>
-                <span className="text-sm text-gray-600">pts</span>
+                <Target className="w-5 h-5 text-neon-pink" />
+                <span className="text-xl font-bold text-white">{player.score}</span>
+                <span className="text-sm text-gray-400">pts</span>
               </div>
             </div>
           ))}
@@ -334,14 +298,13 @@ const Results = () => {
       </div>
 
       {/* Back Button */}
-      <div className="p-10 pt-0 space-y-3">
-   
+      <div className="p-8 pt-0">
         <button
           onClick={handleBackToHome}
-          className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1"
+          className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-lime-600 to-lime-600 text-white px-6 py-4 rounded-xl font-bold tracking-wide transition-all duration-300 hover:shadow-[0_0_25px_rgba(255,0,153,0.6)] transform hover:scale-[1.02]"
         >
-          <Home className="w-5 h-5" />
-          Back to Home
+            <Home className="w-5 h-5" />
+            Back to Home
         </button>
       </div>
     </div>

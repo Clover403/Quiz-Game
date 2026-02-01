@@ -37,20 +37,23 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center mt-2 px-4 py-8 relative">
+      <div className="w-full max-w-md relative z-10">
+
         {/* Header */}
         <div className="text-center mb-8 animate-[slideUp_0.6s_ease-out]">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <GamepadIcon className="w-12 h-12 text-white" />
-            <h1 className="text-4xl font-bold text-white">QuizGame</h1>
+             <div className="p-3 bg-gradient-to-br from-neon-pink to-purple-600 rounded-xl shadow-lg shadow-neon-pink/20">
+              <GamepadIcon className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-white tracking-tight">Quiz<span className="text-neon-pink">Game</span></h1>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
-          <p className="text-purple-100">Login to continue playing</p>
+          <p className="text-mauve/80">Login to continue playing</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl animate-[slideUp_0.8s_ease-out]">
+        <div className="bg-surface/30 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl animate-[slideUp_0.8s_ease-out]">
           {error && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5" />
@@ -63,11 +66,11 @@ const Login = () => {
             <div>
               <label className="block text-white font-semibold mb-2">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-mauve" />
                 <input
                   type="email"
                   name="email"
-                  className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+                  className="w-full pl-11 pr-4 py-3 bg-[#16002A]/50 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all"
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
@@ -80,11 +83,11 @@ const Login = () => {
             <div>
               <label className="block text-white font-semibold mb-2">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-mauve" />
                 <input
                   type="password"
                   name="password"
-                  className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+                  className="w-full pl-11 pr-4 py-3 bg-[#16002A]/50 border border-white/10 rounded-xl text-white placeholder-white/20 focus:outline-none focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all"
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
@@ -96,7 +99,7 @@ const Login = () => {
             {/* Submit Button */}
             <button 
               type="submit" 
-              className="w-full py-3 bg-white text-purple-600 rounded-xl font-bold text-lg hover:bg-gray-100 disabled:bg-white/50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
+              className="w-full py-4 bg-lime-600 text-white rounded-xl font-bold text-lg hover:shadow-lg hover:bg-lime-700 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? (
@@ -115,7 +118,7 @@ const Login = () => {
         <div className="mt-6 text-center space-y-3 animate-[slideUp_1s_ease-out]">
           <p className="text-white">
             Don't have an account?{' '}
-            <Link to="/register" className="font-bold text-yellow-300 hover:text-yellow-200 transition-colors">
+            <Link to="/register" className="font-bold text-lime-700 hover:text-lime-500 mb-2 transition-colors hover">
               Register here
             </Link>
           </p>

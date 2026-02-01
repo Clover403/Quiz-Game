@@ -49,7 +49,7 @@ const register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      avatar: avatar || `https://ui-avatars.com/api/?name=${username}&background=random`
+      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
     });
 
     // Generate JWT token
