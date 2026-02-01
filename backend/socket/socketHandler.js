@@ -23,6 +23,10 @@ const handleSocketConnection = (io, socket) => {
 
   // Create room
   socket.on('createRoom', async (data, callback) => {
+    const safeCallback = (response) => {
+      if (typeof callback === 'function') callback(response);
+    };
+
     try {
       const { roomId } = data;
       
@@ -33,7 +37,7 @@ const handleSocketConnection = (io, socket) => {
       });
 
       if (!room) {
-        return callback({ success: false, message: 'Room not found' });
+        return safeCallback({ success: false, message: 'Room not found' });
       }
 
       // Join socket room
@@ -50,10 +54,10 @@ const handleSocketConnection = (io, socket) => {
         });
       }
 
-      callback({ success: true, room });
+      safeCallback({ success: true, room });
     } catch (error) {
       console.error('Error creating room:', error);
-      callback({ success: false, message: error.message });
+      safeCallback({ success: false, message: error.message });
     }
   });
 
@@ -261,12 +265,16 @@ const handleSocketConnection = (io, socket) => {
 
   // Submit answer
   socket.on('submitAnswer', async (data, callback) => {
+    const safeCallback = (response) => {
+      if (typeof callback === 'function') callback(response);
+    };
+
     try {
       const { roomCode, userId, questionId, answer, timeRemaining } = data;
 
       const question = await Question.findByPk(questionId);
       if (!question) {
-        return callback({ success: false, message: 'Question not found' });
+        return safeCallback({ success: false, message: 'Question not found' });
       }
 
       const isCorrect = answer === question.correctAnswer;
@@ -318,15 +326,19 @@ const handleSocketConnection = (io, socket) => {
         leaderboard
       });
 
-      callback({ success: true, isCorrect, points, timeBonus });
+      safeCallback({ success: true, isCorrect, points, timeBonus });
     } catch (error) {
       console.error('Error submitting answer:', error);
-      callback({ success: false, message: error.message });
+      safeCallback({ success: false, message: error.message });
     }
   });
 
   // Next question
   socket.on('nextQuestion', async (data, callback) => {
+    const safeCallback = (response) => {
+      if (typeof callback === 'function') callback(response);
+    };
+
     try {
       const { roomCode } = data;
 
@@ -357,7 +369,7 @@ const handleSocketConnection = (io, socket) => {
           leaderboard: finalLeaderboard
         });
 
-        return callback({ success: true, finished: true });
+        return safeCallback({ success: true, finished: true });
       }
 
       // Send next question
@@ -376,10 +388,10 @@ const handleSocketConnection = (io, socket) => {
 
       io.to(`room_${roomCode}`).emit('nextQuestion', questionData);
 
-      callback({ success: true, question: questionData });
+      safeCallback({ success: true, question: questionData });
     } catch (error) {
       console.error('Error getting next question:', error);
-      callback({ success: false, message: error.message });
+      safeCallback({ success: false, message: error.message });
     }
   });
 
