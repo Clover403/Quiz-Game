@@ -3,6 +3,8 @@ import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { GameProvider } from './context/GameContext';
 import { AudioProvider } from './context/AudioContext';
+import GlobalBackground from './components/GlobalBackground';
+import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -17,10 +19,12 @@ import './index.css';
 function App() {
   return (
     <Router>
+      <GlobalBackground />
       <AuthProvider>
         <AudioProvider>
           <SocketProvider> 
             <GameProvider>
+              <Navbar />
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
