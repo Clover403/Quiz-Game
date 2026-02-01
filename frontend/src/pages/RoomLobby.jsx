@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { Users, Copy, Crown, Play, Trash2, LogOut, GamepadIcon, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, Copy, Crown, Trash2, LogOut, GamepadIcon, CheckCircle, AlertCircle, Play, Loader2 } from 'lucide-react';
 
 const RoomLobby = () => {
   const { code } = useParams();
@@ -30,122 +30,92 @@ const RoomLobby = () => {
 
     console.log('Setting up socket listeners for room:', code);
 
-    // Listen for player joined event
-    socket.on('player-joined', async (data) => {
+    const handlePlayerJoined = async (data) => {
       console.log('👤 Player joined event:', data);
-      
-      // Refresh room data to get updated players list
       if (data.players) {
-        const playerIds = data.players;
-        const playersData = await Promise.all(
-          playerIds.map(async (playerId) => {
-            try {
-              const userRes = await api.get(`/auth/users/${playerId}`);
-              return userRes.data.data;
-            } catch (err) {
-              console.error('Error fetching user:', err);
-              return null;
-            }
-          })
-        );
-        setPlayers(playersData.filter(p => p !== null));
+        await refreshPlayers(data.players);
       }
-    });
+    };
 
-    // Listen for player left event
-    socket.on('player-left', async (data) => {
+    const handlePlayerLeft = async (data) => {
       console.log('👋 Player left event:', data);
-      
-      // Refresh players list
       if (data.players) {
-        const playerIds = data.players;
-        const playersData = await Promise.all(
-          playerIds.map(async (playerId) => {
-            try {
-              const userRes = await api.get(`/auth/users/${playerId}`);
-              return userRes.data.data;
-            } catch (err) {
-              console.error('Error fetching user:', err);
-              return null;
-            }
-          })
-        );
-        setPlayers(playersData.filter(p => p !== null));
+        await refreshPlayers(data.players);
       }
-    });
+    };
 
-    // Listen for game start event
+    socket.on('player-joined', handlePlayerJoined);
+    socket.on('player-left', handlePlayerLeft);
+
     socket.on('game-started', (data) => {
       console.log('🎮 Game started:', data);
       navigate(`/game/${code}`);
     });
 
-    // Listen for room deleted event
     socket.on('room-deleted', () => {
       alert('Room has been deleted by the host');
       navigate('/');
     });
 
-    // Listen for errors
     socket.on('join-room-error', (data) => {
       console.error('Join room error:', data);
       setError(data.message);
     });
 
     return () => {
-      console.log('Cleaning up socket listeners');
-      socket.off('player-joined');
-      socket.off('player-left');
+      socket.off('player-joined', handlePlayerJoined);
+      socket.off('player-left', handlePlayerLeft);
       socket.off('game-started');
       socket.off('room-deleted');
       socket.off('join-room-error');
     };
   }, [socket, code, navigate, api]);
 
+  const refreshPlayers = async (playerIds) => {
+    if (!playerIds || playerIds.length === 0) return;
+    
+    try {
+      // Use Promise.allSettled to avoid failing completely if one user fails
+      const results = await Promise.allSettled(
+        playerIds.map(id => api.get(`/auth/users/${id}`))
+      );
+      
+      const newPlayers = results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value.data.data);
+        
+      setPlayers(newPlayers);
+    } catch (err) {
+      console.error('Error refreshing players:', err);
+    }
+  };
+
   const fetchRoomData = async () => {
     try {
       setLoading(true);
+      setError('');
       
-      console.log('📡 Fetching room data for code:', code);
-      
-      // Get room by code
       const response = await api.get(`/rooms?code=${code}`);
       
       if (response.data.success && response.data.data.length > 0) {
         const roomData = response.data.data[0];
-        console.log('✅ Room data received:', roomData);
         setRoom(roomData);
         
-        // Get players data
-        const playerIds = roomData.players || [];
-        console.log('👥 Player IDs:', playerIds);
-        
-        if (playerIds.length > 0) {
-          const playersData = await Promise.all(
-            playerIds.map(async (playerId) => {
-              try {
-                const userRes = await api.get(`/auth/users/${playerId}`);
-                return userRes.data.data;
-              } catch (err) {
-                console.error('Error fetching user:', err);
-                return null;
-              }
-            })
-          );
-          setPlayers(playersData.filter(p => p !== null));
+        // Initial player fetch
+        if (roomData.players && roomData.players.length > 0) {
+          await refreshPlayers(roomData.players);
         }
 
-        // Join room via socket
+        // Join room socket
         if (socket && user) {
-          console.log('🔌 Emitting join-room event:', { roomCode: code, userId: user.id });
           socket.emit('join-room', { roomCode: code, userId: user.id });
         }
       } else {
         setError('Room not found');
       }
     } catch (error) {
-      console.error('❌ Error fetching room:', error);
-      setError(error.response?.data?.message || 'Failed to load room');
+      console.error('Error fetching room:', error);
+      setError('Failed to load room data');
     } finally {
       setLoading(false);
     }
@@ -159,10 +129,9 @@ const RoomLobby = () => {
 
   const handleStartGame = () => {
     if (!room.quizId) {
-      alert('Cannot start game without a quiz. Please select a quiz first.');
+      alert('Cannot start game without a quiz.');
       return;
     }
-
     if (socket) {
       socket.emit('start-game', { roomCode: code });
     }
@@ -170,55 +139,48 @@ const RoomLobby = () => {
 
   const handleLeaveRoom = async () => {
     try {
-      console.log('👋 Leaving room:', { roomId: room.id, code });
-      
       await api.delete(`/rooms/${room.id}/leave`);
-      
       if (socket) {
-        console.log('🔌 Emitting leave-room event');
         socket.emit('leave-room', { roomCode: code, userId: user.id });
       }
-      
       navigate('/');
     } catch (error) {
-      console.error('❌ Error leaving room:', error);
-      alert('Failed to leave room: ' + (error.response?.data?.message || error.message));
+      console.error('Error leaving room:', error);
     }
   };
 
   const handleDeleteRoom = async () => {
-    if (!confirm('Are you sure you want to delete this room?')) {
-      return;
-    }
-
+    if (!confirm('Delete this room?')) return;
     try {
       await api.delete(`/rooms/${room.id}`);
-      
       if (socket) {
         socket.emit('delete-room', { roomCode: code });
       }
-      
       navigate('/');
     } catch (error) {
       console.error('Error deleting room:', error);
-      alert('Failed to delete room');
     }
   };
 
   if (loading) {
     return (
-      <div className="room-lobby-container">
-        <div className="spinner"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-neon-pink animate-spin" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="room-lobby-container">
-        <div className="error-box">
-          <h2>❌ {error}</h2>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-surface/30 backdrop-blur-md rounded-2xl p-8 border border-white/10 text-center max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Error</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <button 
+            onClick={() => navigate('/')}
+            className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold transition-all w-full"
+          >
             Back to Home
           </button>
         </div>
@@ -227,205 +189,139 @@ const RoomLobby = () => {
   }
 
   const isHost = room && user && room.hostId === user.id;
-  const canStart = isHost && room.quizId && players.length >= 2;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 via-blue-550 to-purple-800 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Header Card */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.3)] p-8 mb-6">
+    <div className="min-h-screen py-8 px-4 mt-12 font-sans relative overflow-hidden">
+      {/* Background Graphic */}
+      <div className="absolute top-0 left-0 w-full mt-50 h-full pointer-events-none z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[10%] right-[5%] w-[30%] h-[30%] bg-purple-900/20 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="max-w-5xl mx-auto relative z-10">
+        {/* Header */}
+        <div className="bg-surface/30 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <GamepadIcon className="w-8 h-8 text-white" />
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-neon-pink to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-neon-pink/20">
+                <GamepadIcon className="w-10 h-10 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">Room Lobby</h1>
-                <p className="text-purple-200">Waiting for players...</p>
+              <div className="text-center md:text-left">
+                <h1 className="text-4xl font-bold text-white mb-1">Room Lobby</h1>
+                <p className="text-gray-400 text-lg">Waiting for players...</p>
               </div>
             </div>
-            <div className="bg-white/20 backdrop-blur-lg rounded-2xl border border-white/30 px-6 py-4 flex items-center gap-4">
-              <div className="text-center">
-                <div className="text-sm text-purple-200 mb-1">Room Code</div>
-                <div className="text-3xl font-bold text-white tracking-wider">{code}</div>
-              </div>
+            
+            <div className="bg-black/10 backdrop-blur-lg rounded-2xl border border-white/10 px-8 py-6 flex flex-col items-center gap-3 min-w-[240px]">
+               <div className="text-sm text-gray-400 font-medium uppercase tracking-widest">Room Code</div>
+               <div className="text-5xl font-mono font-bold text-lime-600 tracking-widest text-shadow-glow">{code}</div>
               <button 
-                className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 border border-white/30 hover:scale-105"
+                className="w-full bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 border border-white/10 hover:border-neon-pink/30 group"
                 onClick={handleCopyCode}
-                title="Copy room code"
               >
-                {copied ? (
-                  <><CheckCircle className="w-4 h-4" /> Copied!</>
-                ) : (
-                  <><Copy className="w-4 h-4" /> Copy</>
-                )}
+                {copied ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 group-hover:text-neon-pink transition-colors" />}
+                {copied ? 'Copied!' : 'Copy Code'}
               </button>
             </div>
           </div>
         </div>
 
         {/* Room Info */}
-        {room && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-2">
-                <Crown className="w-5 h-5 text-yellow-400" />
-                <div className="text-sm text-purple-200">Host</div>
-              </div>
-              <div className="text-xl font-bold text-white">{room.host?.username || 'Unknown'}</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-2">
-                <GamepadIcon className="w-5 h-5 text-blue-400" />
-                <div className="text-sm text-purple-200">Quiz</div>
-              </div>
-              <div className="text-lg font-bold text-white">
-                {room.quiz ? (
-                  <>
-                    {room.quiz.title}
-                    <div className="text-xs text-purple-300 mt-1">
-                      {room.quiz.category} • {room.quiz.difficulty}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* Host Info */}
+            <div className="bg-surface/30 backdrop-blur-xl rounded-2xl border border-white/10 p-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-500/20 rounded-xl">
+                        <Crown className="w-6 h-6 text-yellow-500" />
                     </div>
-                  </>
-                ) : (
-                  <span className="text-orange-300">No quiz selected</span>
-                )}
-              </div>
+                    <div>
+                        <div className="text-sm text-gray-400">Host</div>
+                        <div className="text-xl font-bold text-white">{room?.host?.username || 'Loading...'}</div>
+                    </div>
+                </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-5 h-5 text-green-400" />
-                <div className="text-sm text-purple-200">Players</div>
-              </div>
-              <div className="text-xl font-bold text-white">
-                {players.length} / {room.maxPlayers}
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center gap-3 mb-2">
-                <AlertCircle className="w-5 h-5 text-purple-400" />
-                <div className="text-sm text-purple-200">Status</div>
-              </div>
-              <div className={`text-xl font-bold capitalize ${
-                room.status === 'waiting' ? 'text-yellow-300' : 
-                room.status === 'playing' ? 'text-green-300' : 'text-gray-300'
-              }`}>
-                {room.status}
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Players List */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Users className="w-6 h-6 text-white" />
-            <h3 className="text-2xl font-bold text-white">Players in Room</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {players.map((player) => (
-              <div 
-                key={player.id} 
-                className={`relative bg-white/10 rounded-2xl border-2 p-4 transition-all duration-300 hover:scale-105 hover:bg-white/20 ${
-                  player.id === room?.hostId ? 'border-yellow-400 bg-yellow-400/10' : 'border-white/20'
-                }`}
-              >
-                {player.id === room?.hostId && (
-                  <div className="absolute -top-2 -right-2 bg-yellow-400 text-purple-900 rounded-full p-1.5 shadow-lg">
-                    <Crown className="w-4 h-4" />
-                  </div>
-                )}
-                <img 
-                  src={player.avatar || `https://ui-avatars.com/api/?name=${player.username}&background=random`} 
-                  alt={player.username}
-                  className="w-16 h-16 rounded-full mx-auto mb-3 border-2 border-white/30 shadow-lg"
-                />
-                <div className="text-center">
-                  <div className="text-white font-semibold truncate">{player.username}</div>
-                  {player.id === room?.hostId && (
-                    <span className="text-xs text-yellow-300 font-medium">Host</span>
-                  )}
+            {/* Quiz Info */}
+            <div className="bg-bl/30 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-purple-600/20 rounded-xl">
+                        <GamepadIcon className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        <div className="text-sm text-gray-400">Selected Quiz</div>
+                        <div className="text-xl font-bold text-white truncate">
+                            {room?.quiz ? room.quiz.title : <span className="text-gray-500 italic">No quiz selected</span>}
+                        </div>
+                    </div>
                 </div>
-              </div>
-            ))}
-            
-            {/* Empty slots */}
-            {Array.from({ length: room.maxPlayers - players.length }).map((_, index) => (
-              <div key={`empty-${index}`} className="bg-white/5 border-2 border-dashed border-white/20 rounded-2xl p-4 flex flex-col items-center justify-center opacity-50">
-                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-3">
-                  <Users className="w-8 h-8 text-white/50" />
-                </div>
-                <div className="text-white/50 text-sm">Waiting...</div>
-              </div>
-            ))}
-          </div>
+            </div>
         </div>
 
-        {players.length < 2 && (
-          <div className="bg-blue-500/20 border border-blue-400/50 rounded-2xl p-4 mb-6 flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-blue-300 flex-shrink-0" />
-            <div className="text-blue-100">
-              Waiting for more players to join... (Minimum 2 players required)
+        {/* Players Grid */}
+        <div className="bg-surface/30 backdrop-blur-xl rounded-3xl border border-white/10 shadow-xl p-8 mb-8">
+            <div className="flex items-center gap-3 mb-6">
+                <Users className="w-6 h-6 text-blue-400" />
+                <h2 className="text-2xl font-bold text-white">Players ({players.length})</h2>
             </div>
-          </div>
-        )}
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {players.map((player) => (
+                    <div key={player.id} className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col items-center gap-3 hover:bg-white/10 transition-all">
+                        <div className="relative">
+                            <img src={player.avatar || `https://ui-avatars.com/api/?name=${player.username}`} alt={player.username} className="w-16 h-16 rounded-full border-2 border-white/20" />
+                            {room.hostId === player.id && (
+                                <div className="absolute -top-2 -right-2 text-yellow-500 bg-yellow-500/20 rounded-full p-1 shadow-lg">
+                                    <Crown className="w-3 h-3" />
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-white font-medium truncate w-full text-center">{player.username}</span>
+                    </div>
+                ))}
+                
+                {/* Empty slots placeholders */}
+                {[...Array(Math.max(0, 4 - players.length))].map((_, i) => (
+                    <div key={`empty-${i}`} className="bg-white/5 border border-white/5 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 opacity-50">
+                        <div className="w-16 h-16 rounded-full border-2 border-white/10 flex items-center justify-center">
+                            <Users className="w-6 h-6 text-white/20" />
+                        </div>
+                        <span className="text-white/30 text-sm">Waiting...</span>
+                    </div>
+                ))}
+            </div>
+        </div>
 
         {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          {isHost ? (
-            <>
-              <button
-                className="flex-1 flex items-center justify-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:hover:scale-100"
-                onClick={handleStartGame}
-                disabled={!canStart}
-                title={!canStart ? 'Need at least 2 players and a quiz to start' : 'Start the game'}
-              >
-                <Play className="w-6 h-6" />
-                Start Game
-              </button>
-              <button
-                className="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                onClick={handleDeleteRoom}
-              >
-                <Trash2 className="w-6 h-6" />
-                Delete Room
-              </button>
-            </>
-          ) : (
-            <button
-              className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-gray-600 to-slate-600 hover:from-gray-700 hover:to-slate-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-              onClick={handleLeaveRoom}
-            >
-              <LogOut className="w-6 h-6" />
-              Leave Room
-            </button>
-          )}
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6">
-          <h4 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <GamepadIcon className="w-5 h-5" />
-            Instructions
-          </h4>
-          <ul className="space-y-2 text-purple-100">
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-400 mt-1">•</span>
-              <span>Share the room code with your friends</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-400 mt-1">•</span>
-              <span>Wait for players to join (minimum 2 players)</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-400 mt-1">•</span>
-              <span>Host can start the game when ready</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-yellow-400 mt-1">•</span>
-              <span>Have fun and good luck! 🎉</span>
-            </li>
-          </ul>
+        <div className="flex flex-col md:flex-row gap-4 justify-center">
+            {isHost ? (
+                <>
+                    <button 
+                        onClick={handleDeleteRoom}
+                        className="px-8 py-4 bg-red-500/20 hover:bg-red-500/30 text-red-500 border border-red-500/50 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-105"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                        Delete Room
+                    </button>
+                    <button 
+                        onClick={handleStartGame}
+                        className="px-8 py-4 bg-gradient-to-r from-lime-600 to-lime-600 hover:shadow-[0_0_20px_rgba(255,0,153,0.5)] text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all hover:scale-105 hover:bg-lime-900 flex-1 md:max-w-md shadow-xl"
+                    >
+                        <Play className="w-6 h-6 fill-current" />
+                        Start Game
+                    </button>
+                </>
+            ) : (
+                <div className="w-full text-center">
+                    <p className="text-gray-400 mb-4 animate-pulse">Waiting for host to start the game...</p>
+                    <button 
+                        onClick={handleLeaveRoom}
+                        className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white border border-white/10 rounded-xl font-bold flex items-center justify-center gap-2 transition-all mx-auto"
+                    >
+                        <LogOut className="w-5 h-5" />
+                        Leave Room
+                    </button>
+                </div>
+            )}
         </div>
       </div>
     </div>
