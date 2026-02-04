@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GamepadIcon, Mail, Lock, User, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
@@ -15,12 +15,20 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  // Memoize computed values untuk prevent unnecessary re-renders di mobile
+  const passwordLength = useMemo(() => formData.password.length >= 6, [formData.password]);
+  const passwordMatch = useMemo(() => 
+    formData.password && formData.confirmPassword && formData.password === formData.confirmPassword,
+    [formData.password, formData.confirmPassword]
+  );
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,9 +61,6 @@ const Register = () => {
     
     setLoading(false);
   };
-
-  const passwordMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
-  const passwordLength = formData.password.length >= 6;
 
   return (
     <div className="min-h-screen flex items-center justify-center mt-10 px-4 py-8 relative">
@@ -135,10 +140,12 @@ const Register = () => {
                 />
               </div>
               {formData.password && (
-                <p className={`text-sm mt-2 flex items-center gap-1 ${passwordLength ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {passwordLength ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                  Password must be at least 6 characters
-                </p>
+                <div className={`text-sm mt-2 flex items-center gap-1 transition-colors duration-200 ${passwordLength ? 'text-green-400' : 'text-yellow-400'}`}>
+                  <span className="w-4 h-4 flex-shrink-0">
+                    {passwordLength ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  </span>
+                  <span>Password must be at least 6 characters</span>
+                </div>
               )}
             </div>
 
@@ -158,10 +165,12 @@ const Register = () => {
                 />
               </div>
               {formData.confirmPassword && (
-                <p className={`text-sm mt-2 flex items-center gap-1 ${passwordMatch ? 'text-green-400' : 'text-rose-400'}`}>
-                  {passwordMatch ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                  {passwordMatch ? 'Passwords match' : 'Passwords do not match'}
-                </p>
+                <div className={`text-sm mt-2 flex items-center gap-1 transition-colors duration-200 ${passwordMatch ? 'text-green-400' : 'text-rose-400'}`}>
+                  <span className="w-4 h-4 flex-shrink-0">
+                    {passwordMatch ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  </span>
+                  <span>{passwordMatch ? 'Passwords match' : 'Passwords do not match'}</span>
+                </div>
               )}
             </div>
 
