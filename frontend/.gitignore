@@ -27,3 +27,4 @@ dist-ssr
 public/music/*.mp3
 public/music/*.wav
 public/music/*.ogg
+.vercel

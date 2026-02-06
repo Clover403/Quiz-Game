@@ -14,6 +14,7 @@ import RoomLobby from './pages/RoomLobby';
 import Game from './pages/Game';
 import Results from './pages/Results';
 import Profile from './pages/Profile';
+import QuizSelection from './pages/QuizSelection';
 import './index.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/create-room" element={<CreateRoom />} />
                 <Route path="/join-room" element={<JoinRoom />} />
+                <Route path="/quiz-selection" element={<QuizSelection />} />
                 <Route path="/room/:code" element={<RoomLobby />} />
                 <Route path="/game/:code" element={<Game />} />
                 <Route path="/results/:code" element={<Results />} />
