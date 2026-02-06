@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Sparkles, BookOpen, Users, Settings, Info, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, BookOpen, Users, Settings, Info, Loader2, LayoutGrid, List } from 'lucide-react';
 
 const CreateRoom = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, api } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ const CreateRoom = () => {
   });
 
   const [roomMode, setRoomMode] = useState('ai'); // 'existing' or 'ai' only
+  const [selectionMode, setSelectionMode] = useState('dropdown'); // 'dropdown' or 'card'
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -27,7 +29,17 @@ const CreateRoom = () => {
       return;
     }
     fetchQuizzes();
-  }, [isAuthenticated]);
+    
+    // Check if returning from QuizSelection with selected quiz
+    if (location.state?.selectedQuizId) {
+      setFormData(prev => ({
+        ...prev,
+        quizId: location.state.selectedQuizId
+      }));
+      setRoomMode('existing');
+      setSelectionMode('dropdown');
+    }
+  }, [isAuthenticated, location.state]);
 
   const fetchQuizzes = async () => {
     try {
@@ -258,34 +270,97 @@ const CreateRoom = () => {
 
             {/* Select Existing Quiz */}
             {roomMode === 'existing' && (
-              <div className="animate-[slideUp_0.4s_ease-out] bg-[#16002A]/40 p-6 rounded-2xl border border-white/5">
-                <label className="block text-white font-semibold mb-2">Select Quiz</label>
-                {quizzes.length > 0 ? (
-                  <select
-                    name="quizId"
-                    className="w-full px-4 py-3 bg-[#16002A] border border-white/10 rounded-xl text-white focus:outline-none focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all appearance-none cursor-pointer"
-                    value={formData.quizId}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Choose a quiz...</option>
-                    {quizzes.map((quiz) => (
-                      <option key={quiz.id} value={quiz.id}>
-                        {quiz.title} ({quiz.category} - {quiz.difficulty})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
-                    <p className="text-yellow-200 mb-4">No quizzes available yet.</p>
+              <div className="animate-[slideUp_0.4s_ease-out] bg-[#16002A]/40 p-6 rounded-2xl border border-white/5 space-y-4">
+                {/* Selection Mode Toggle */}
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-white font-semibold">Select Quiz</label>
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-colors border border-white/10"
-                      onClick={() => setRoomMode('ai')}
+                      onClick={() => setSelectionMode('dropdown')}
+                      className={`p-2 rounded-lg transition-all ${
+                        selectionMode === 'dropdown'
+                          ? 'bg-neon-pink text-white'
+                          : 'bg-white/10 text-mauve hover:bg-white/20'
+                      }`}
+                      title="Dropdown selection"
                     >
-                      Generate with AI instead
+                      <List className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/quiz-selection', { 
+                        state: { 
+                          fromCreateRoom: true,
+                          roomData: formData
+                        }
+                      })}
+                      className={`p-2 rounded-lg transition-all ${
+                        selectionMode === 'card'
+                          ? 'bg-neon-pink text-white'
+                          : 'bg-white/10 text-mauve hover:bg-white/20'
+                      }`}
+                      title="Card selection"
+                    >
+                      <LayoutGrid className="w-5 h-5" />
                     </button>
                   </div>
+                </div>
+
+                {/* Dropdown Mode */}
+                {selectionMode === 'dropdown' && (
+                  <>
+                    {quizzes.length > 0 ? (
+                      <>
+                        <select
+                          name="quizId"
+                          className="w-full px-4 py-3 bg-[#16002A] border border-white/10 rounded-xl text-white focus:outline-none focus:border-neon-pink focus:ring-1 focus:ring-neon-pink transition-all appearance-none cursor-pointer"
+                          value={formData.quizId}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Choose a quiz...</option>
+                          {quizzes.map((quiz) => (
+                            <option key={quiz.id} value={quiz.id}>
+                              {quiz.title} ({quiz.category} - {quiz.difficulty})
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Or browse cards button */}
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="flex-1 h-px bg-white/10"></div>
+                          <span className="text-mauve/50 text-sm">or</span>
+                          <div className="flex-1 h-px bg-white/10"></div>
+                        </div>
+                        
+                        <button
+                          type="button"
+                          onClick={() => navigate('/quiz-selection', { 
+                            state: { 
+                              fromCreateRoom: true,
+                              roomData: formData
+                            }
+                          })}
+                          className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 border border-white/10"
+                        >
+                          <LayoutGrid className="w-5 h-5" />
+                          Browse Quiz Cards
+                        </button>
+                      </>
+                    ) : (
+                      <div className="p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
+                        <p className="text-yellow-200 mb-4">No quizzes available yet.</p>
+                        <button
+                          type="button"
+                          className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold transition-colors border border-white/10"
+                          onClick={() => setRoomMode('ai')}
+                        >
+                          Generate with AI instead
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

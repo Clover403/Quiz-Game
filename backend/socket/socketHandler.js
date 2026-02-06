@@ -277,7 +277,19 @@ const handleSocketConnection = (io, socket) => {
         return safeCallback({ success: false, message: 'Question not found' });
       }
 
-      const isCorrect = answer === question.correctAnswer;
+      // Convert both to numbers for comparison (fix production bug)
+      const userAnswer = parseInt(answer);
+      const correctAnswer = parseInt(question.correctAnswer);
+      const isCorrect = userAnswer === correctAnswer;
+      
+      console.log('🎯 Answer comparison:', { 
+        userAnswer, 
+        correctAnswer, 
+        isCorrect,
+        originalAnswer: answer,
+        originalCorrect: question.correctAnswer
+      });
+      
       let points = 0;
       let timeBonus = 0;
 
