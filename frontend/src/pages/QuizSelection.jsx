@@ -342,11 +342,11 @@ const QuizSelection = () => {
                     <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                       <div className="flex items-center gap-1">
                         <BookOpen className="w-4 h-4" />
-                        <span>{quiz.totalQuestions || 0} Q</span>
+                        <span>{quiz.totalQuestions || quiz.questionCount || 0} Questions</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        <span>~{(quiz.totalQuestions || 0) * 30}s</span>
+                        <span>~{((quiz.totalQuestions || quiz.questionCount || 0) * 30)}s</span>
                       </div>
                     </div>
 

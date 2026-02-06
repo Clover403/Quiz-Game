@@ -207,6 +207,7 @@ const getAllQuizzes = async (req, res) => {
         difficulty: quiz.difficulty,
         isAIGenerated: quiz.isAIGenerated,
         questionCount: quiz.questions.length,
+        totalQuestions: quiz.questions.length, // Add for compatibility
         createdAt: quiz.createdAt
       }))
     });
